@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   Leaf, 
   BookOpen, 
@@ -19,6 +20,8 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout }) => {
+  const { user } = useAuth();
+
   const menuItems = [
     { id: 'home', label: 'Lá tâm tình', icon: Leaf },
     { id: 'collection', label: 'Vườn ký ức', icon: BookOpen },
@@ -38,8 +41,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLog
           />
         </div>
         <div>
-          <p className="font-headline font-bold text-lg text-primary">Linh hồn cây</p>
-          <p className="text-xs text-secondary opacity-70">Người dẫn dắt linh hồn</p>
+          <p className="font-headline font-bold text-lg text-primary">{user?.displayName || 'Linh hồn cây'}</p>
+          <p className="text-xs text-secondary opacity-70 truncate max-w-[160px]">{user?.email || 'Người dẫn dắt linh hồn'}</p>
         </div>
       </div>
 

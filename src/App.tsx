@@ -5,9 +5,11 @@ import { Home } from './components/Home';
 import { Collection } from './components/Collection';
 import { OracleDialogue } from './components/OracleDialogue';
 import { Login } from './components/Login';
+import { useAuth } from './contexts/AuthContext';
+import { Leaf } from 'lucide-react';
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { isAuthenticated, isLoading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('home');
 
   // Firefly background effect
@@ -23,7 +25,28 @@ export default function App() {
     setFireflies(newFireflies);
   }, []);
 
-  if (!isLoggedIn) {
+  // Loading screen while checking token
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+        >
+          <Leaf size={48} className="text-primary" />
+        </motion.div>
+        <motion.p
+          className="font-headline text-primary italic text-lg"
+          animate={{ opacity: [0.4, 1, 0.4] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          Đang kết nối với thánh đường...
+        </motion.p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
     return (
       <div className="relative overflow-hidden">
         {fireflies.map(f => (
@@ -44,7 +67,7 @@ export default function App() {
             }}
           />
         ))}
-        <Login onLogin={() => setIsLoggedIn(true)} />
+        <Login />
       </div>
     );
   }
@@ -77,7 +100,7 @@ export default function App() {
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
-        onLogout={() => setIsLoggedIn(false)}
+        onLogout={logout}
       />
 
       <main className="min-h-screen pt-28 pb-32 lg:pl-80 px-6 md:px-12 max-w-[1600px] mx-auto w-full relative z-10">

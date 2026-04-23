@@ -1,8 +1,76 @@
-import React from 'react';
-import { motion } from 'motion/react';
-import { Leaf, ArrowRight, BookOpen, History } from 'lucide-react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Leaf, ArrowRight, BookOpen, Mail, KeyRound, UserPlus, LogIn } from 'lucide-react';
+import { authApi, ApiError } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
-export const Login: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
+type Step = 'login' | 'register';
+
+export const Login: React.FC = () => {
+  const { setToken } = useAuth();
+
+  const [step, setStep] = useState<Step>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const clearMessages = () => {
+    setError('');
+    setSuccess('');
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearMessages();
+    setLoading(true);
+    try {
+      await authApi.register(email, password);
+      setSuccess('Đăng ký thành công! Đang đăng nhập...');
+      // Auto-login after register
+      const loginRes = await authApi.login(email, password);
+      if (loginRes.token) {
+        setToken(loginRes.token);
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Có lỗi xảy ra');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearMessages();
+    setLoading(true);
+    try {
+      const res = await authApi.login(email, password);
+      if (res.token) {
+        setToken(res.token);
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Có lỗi xảy ra');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const switchToRegister = () => {
+    clearMessages();
+    setStep('register');
+  };
+
+  const switchToLogin = () => {
+    clearMessages();
+    setStep('login');
+  };
+
+  const isLogin = step === 'login';
+  const config = isLogin
+    ? { title: 'Kết nối tâm hồn', subtitle: 'Nhập định danh để bước vào thánh đường', icon: LogIn, buttonText: 'Bước qua cánh cổng', onSubmit: handleLogin }
+    : { title: 'Gieo hạt giống mới', subtitle: 'Tạo định danh để bắt đầu hành trình', icon: UserPlus, buttonText: 'Gieo hạt giống', onSubmit: handleRegister };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-6 md:p-12 bg-background">
       <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-12 gap-12 items-stretch">
@@ -36,43 +104,126 @@ export const Login: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
         <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="md:col-span-2 bg-surface-container-lowest rounded-[2rem] p-8 md:p-10 shadow-sm border border-outline-variant/10">
             <div className="max-w-md mx-auto space-y-8">
-              <div className="text-center">
-                <h3 className="text-2xl font-headline text-on-surface">Kết nối tâm hồn</h3>
-                <p className="text-on-surface-variant text-sm mt-2">Vui lòng nhập định danh để tiếp tục hành trình</p>
-              </div>
-              
-              <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); onLogin(); }}>
-                <div className="space-y-2">
-                  <label className="block text-xs font-medium uppercase tracking-widest text-on-surface-variant px-1">Định danh (Email)</label>
-                  <input 
-                    className="w-full bg-surface-container-low border-none rounded-2xl px-6 py-4 focus:ring-2 focus:ring-primary/20 text-on-surface outline-none" 
-                    placeholder="spirit@thecanopy.vn" 
-                    type="email" 
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-xs font-medium uppercase tracking-widest text-on-surface-variant px-1">Mật mã cổ</label>
-                  <input 
-                    className="w-full bg-surface-container-low border-none rounded-2xl px-6 py-4 focus:ring-2 focus:ring-primary/20 text-on-surface outline-none" 
-                    placeholder="••••••••" 
-                    type="password" 
-                    required
-                  />
-                </div>
-                <button 
-                  className="w-full bg-primary text-on-primary font-medium py-4 rounded-full shadow-lg shadow-primary/20 hover:brightness-110 transition-all active:scale-95 flex justify-center items-center gap-2 group" 
-                  type="submit"
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={step}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="space-y-8"
                 >
-                  Bước qua cánh cổng
-                  <ArrowRight className="group-hover:translate-x-1 transition-transform" />
-                </button>
-              </form>
-              
-              <div className="flex items-center justify-between text-sm pt-4">
-                <a className="text-on-surface-variant hover:text-tertiary transition-colors" href="#">Quên mật mã?</a>
-                <a className="text-primary font-semibold hover:underline" href="#">Gieo hạt giống mới</a>
-              </div>
+                  {/* Header */}
+                  <div className="text-center">
+                    <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/10 text-primary mb-4">
+                      <config.icon size={24} />
+                    </div>
+                    <h3 className="text-2xl font-headline text-on-surface">{config.title}</h3>
+                    <p className="text-on-surface-variant text-sm mt-2">{config.subtitle}</p>
+                  </div>
+
+                  {/* Messages */}
+                  {error && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-tertiary/10 border border-tertiary/20 text-tertiary px-4 py-3 rounded-2xl text-sm text-center"
+                    >
+                      {error}
+                    </motion.div>
+                  )}
+                  {success && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-primary/10 border border-primary/20 text-primary px-4 py-3 rounded-2xl text-sm text-center"
+                    >
+                      {success}
+                    </motion.div>
+                  )}
+
+                  {/* Form */}
+                  <form className="space-y-6" onSubmit={config.onSubmit}>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium uppercase tracking-widest text-on-surface-variant px-1">
+                        <Mail size={12} className="inline mr-1 -mt-0.5" />
+                        Định danh (Email)
+                      </label>
+                      <input 
+                        className="w-full bg-surface-container-low border-none rounded-2xl px-6 py-4 focus:ring-2 focus:ring-primary/20 text-on-surface outline-none transition-shadow" 
+                        placeholder="spirit@thecanopy.vn" 
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        autoComplete="email"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium uppercase tracking-widest text-on-surface-variant px-1">
+                        <KeyRound size={12} className="inline mr-1 -mt-0.5" />
+                        Mật mã cổ
+                      </label>
+                      <input 
+                        className="w-full bg-surface-container-low border-none rounded-2xl px-6 py-4 focus:ring-2 focus:ring-primary/20 text-on-surface outline-none transition-shadow" 
+                        placeholder="••••••••" 
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        minLength={6}
+                        autoComplete={isLogin ? 'current-password' : 'new-password'}
+                      />
+                    </div>
+
+                    <button 
+                      className="w-full bg-primary text-on-primary font-medium py-4 rounded-full shadow-lg shadow-primary/20 hover:brightness-110 transition-all active:scale-95 flex justify-center items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed" 
+                      type="submit"
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <motion.div
+                          className="w-5 h-5 border-2 border-on-primary/30 border-t-on-primary rounded-full"
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                        />
+                      ) : (
+                        <>
+                          {config.buttonText}
+                          <ArrowRight className="group-hover:translate-x-1 transition-transform" />
+                        </>
+                      )}
+                    </button>
+                  </form>
+                  
+                  {/* Footer links */}
+                  <div className="flex items-center justify-between text-sm pt-4">
+                    {isLogin ? (
+                      <>
+                        <span className="text-on-surface-variant text-xs">Chưa có tài khoản?</span>
+                        <button 
+                          onClick={switchToRegister} 
+                          className="text-primary font-semibold hover:underline"
+                          type="button"
+                        >
+                          Gieo hạt giống mới
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-on-surface-variant text-xs">Đã có định danh?</span>
+                        <button 
+                          onClick={switchToLogin} 
+                          className="text-primary font-semibold hover:underline"
+                          type="button"
+                        >
+                          Đăng nhập
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
 
