@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Send, Sparkles, User, Leaf, Info } from 'lucide-react';
-import { getOracleResponse } from '@/services/gemini';
-import { cn } from '@/lib/utils';
+import { getOracleResponse } from '../services/gemini';
+import { cn } from '../lib/utils';
 
 interface Message {
   id: string;
@@ -17,12 +17,28 @@ export const OracleDialogue: React.FC = () => {
       id: '1',
       role: 'model',
       text: 'Chào người lữ hành của tâm hồn. Ta nghe thấy tiếng bước chân khẽ khàng của bạn trong đại ngàn tri thức. Hôm nay, trái tim bạn đang tìm kiếm sự tĩnh lặng hay một lời hồi đáp từ những tán lá cổ xưa?',
-      timestamp: '10:00 AM'
+      timestamp: ''
     }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      try {
+        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5003';
+        const response = await fetch(`${baseUrl}/api/content/oracle-suggestions`);
+        const data = await response.json();
+        setSuggestions(data);
+      } catch (error) {
+        console.error('Error fetching oracle suggestions:', error);
+      }
+    };
+
+    fetchSuggestions();
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -64,12 +80,6 @@ export const OracleDialogue: React.FC = () => {
     setIsLoading(false);
   };
 
-  const suggestions = [
-    "Kể tôi nghe về sự tĩnh tại",
-    "Làm sao để buông bỏ muộn phiền?",
-    "Lòng biết ơn trong từng hơi thở"
-  ];
-
   return (
     <div className="flex flex-col h-[calc(100vh-12rem)] max-w-4xl mx-auto">
       <header className="text-center mb-8">
@@ -85,26 +95,35 @@ export const OracleDialogue: React.FC = () => {
           {messages.map((msg) => (
             <motion.div 
               key={msg.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={msg.role === 'model' ? { opacity: 0, y: 26, scale: 0.88, filter: 'blur(12px)' } : { opacity: 0, y: 10 }}
+              animate={msg.role === 'model' ? { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' } : { opacity: 1, y: 0 }}
+              transition={msg.role === 'model' ? { duration: 0.75, ease: 'easeOut' } : { duration: 0.4, ease: 'easeOut' }}
               className={cn(
                 "flex items-start gap-4 max-w-[85%]",
                 msg.role === 'user' ? "self-end flex-row-reverse" : "self-start"
               )}
             >
               <div className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-1 shadow-sm",
+                "w-10 h-10 rounded-full flex items-center justify-center shrink-0 mt-1 shadow-sm",
                 msg.role === 'model' ? "bg-secondary-container text-secondary" : "bg-tertiary-container text-on-tertiary-container"
               )}>
                 {msg.role === 'model' ? <Leaf size={18} /> : <User size={18} />}
               </div>
               <div className={cn(
-                "p-6 rounded-2xl shadow-sm",
+                "relative p-6 rounded-2xl shadow-sm overflow-hidden",
                 msg.role === 'model' 
                   ? "bg-surface-container-low rounded-tl-none border-l-4 border-primary/20 italic font-headline text-lg" 
                   : "bg-primary text-on-primary rounded-tr-none"
               )}>
-                <p className="leading-relaxed">{msg.text}</p>
+                {msg.role === 'model' && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.6, x: -20, y: -20 }}
+                    animate={{ opacity: 0.22, scale: 1.1, x: 0, y: 0 }}
+                    transition={{ duration: 0.65, ease: 'easeOut' }}
+                    className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-amber-200/10 via-transparent to-transparent blur-xl"
+                  />
+                )}
+                <p className="leading-relaxed whitespace-pre-line">{msg.text}</p>
                 <span className={cn(
                   "block mt-4 text-[10px] font-medium tracking-widest uppercase",
                   msg.role === 'model' ? "text-on-surface-variant" : "opacity-70 text-right"
@@ -154,7 +173,7 @@ export const OracleDialogue: React.FC = () => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              className="flex-1 bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-on-surface-variant/50" 
+              className="flex-1 bg-transparent border-none outline-none focus:outline-none focus:border-none focus:ring-0 text-on-surface placeholder:text-on-surface-variant/50" 
               placeholder="Gửi gắm tâm tình của bạn tại đây..." 
               type="text"
             />

@@ -7,6 +7,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   setToken: (token: string) => void;
+  setUser: (user: UserProfile) => void;
   logout: () => void;
 }
 
@@ -76,6 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading,
     isAuthenticated: !!token && !!user,
     setToken,
+    setUser,
     logout,
   };
 

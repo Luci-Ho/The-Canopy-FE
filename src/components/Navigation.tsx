@@ -1,17 +1,22 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   Leaf, 
   BookOpen, 
   Sparkles, 
   History, 
-  Settings, 
+  Cog, 
+  Sun, 
+  SunMoon, 
   PlusCircle,
   User,
-  LogOut
+  LogOut,
+  Music2,
+  Play,
+  Pause
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '../lib/utils';
 
 interface SidebarProps {
   activeTab: string;
@@ -19,34 +24,57 @@ interface SidebarProps {
   onLogout?: () => void;
 }
 
+const AnimateIcon: React.FC<{ animateOnHover?: boolean; className?: string; children: React.ReactNode }> = ({ animateOnHover = false, className, children }) => (
+  <motion.span
+    className={className}
+    whileHover={animateOnHover ? { scale: 1.15, rotate: [0, 6, -4, 0] } : undefined}
+    whileTap={animateOnHover ? { scale: 0.93 } : undefined}
+    transition={{ duration: 0.25, ease: 'easeOut' }}
+  >
+    {children}
+  </motion.span>
+);
+
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout }) => {
   const { user } = useAuth();
+  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5003';
+  const resolveAvatarUrl = (url: string) => {
+    if (!url) return url;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    if (url.startsWith('/')) return `${baseUrl}${url}`;
+    return `${baseUrl}/${url}`;
+  };
 
   const menuItems = [
     { id: 'home', label: 'Lá tâm tình', icon: Leaf },
     { id: 'collection', label: 'Vườn ký ức', icon: BookOpen },
     { id: 'oracle', label: 'Lời sấm truyền', icon: Sparkles },
+    { id: 'profile', label: 'Hồ sơ linh hồn', icon: User },
     { id: 'timeline', label: 'Dòng thời gian', icon: History },
   ];
 
   return (
-    <aside className="hidden lg:flex fixed left-0 top-0 h-screen z-40 flex-col p-6 w-80 bg-surface rounded-r-[2rem] shadow-2xl shadow-primary/10 pt-24">
+    <aside className="hidden lg:flex fixed left-0 top-0 h-screen z-40 flex-col p-6 w-80 bg-surface rounded-r-4xl shadow-2xl shadow-primary/10 pt-24">
       <div className="flex items-center gap-4 mb-10 px-4">
         <div className="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center overflow-hidden border border-primary/10">
-          <img 
-            src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=100&auto=format&fit=crop" 
-            alt="Avatar" 
-            className="w-full h-full object-cover"
-            referrerPolicy="no-referrer"
-          />
+          {user?.avatarUrl ? (
+            <img
+              src={resolveAvatarUrl(user.avatarUrl)}
+              alt="Avatar" 
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <User size={24} className="text-primary" />
+          )}
         </div>
         <div>
-          <p className="font-headline font-bold text-lg text-primary">{user?.displayName || 'Linh hồn cây'}</p>
-          <p className="text-xs text-secondary opacity-70 truncate max-w-[160px]">{user?.email || 'Người dẫn dắt linh hồn'}</p>
+          <p className="font-headline font-bold text-lg text-primary">{user?.username || 'Linh hồn cây'}</p>
+          <p className="text-xs text-secondary opacity-70 truncate max-w-40">{user?.email || 'Người dẫn dắt linh hồn'}</p>
         </div>
       </div>
 
-      <nav className="flex flex-col gap-2 flex-grow">
+      <nav className="flex flex-col gap-2 grow">
         {menuItems.map((item) => (
           <button
             key={item.id}
@@ -87,7 +115,31 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLog
   );
 };
 
-export const Navbar: React.FC<{ setActiveTab: (tab: string) => void }> = ({ setActiveTab }) => {
+interface NavbarProps {
+  setActiveTab: (tab: string) => void;
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
+  isAudioEnabled: boolean;
+  onAudioToggle: () => void;
+  currentTrackLabel: string;
+  trackOptions: { label: string; url: string }[];
+  showTrackPanel: boolean;
+  toggleTrackPanel: () => void;
+  onTrackSelect: (url: string, label: string) => void;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({
+  setActiveTab,
+  theme,
+  toggleTheme,
+  isAudioEnabled,
+  onAudioToggle,
+  currentTrackLabel,
+  trackOptions,
+  showTrackPanel,
+  toggleTrackPanel,
+  onTrackSelect,
+}) => {
   return (
     <nav className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-8 h-20 bg-background/80 backdrop-blur-md shadow-sm shadow-primary/5">
       <div 
@@ -109,12 +161,92 @@ export const Navbar: React.FC<{ setActiveTab: (tab: string) => void }> = ({ setA
         ))}
       </div>
 
-      <div className="flex items-center gap-4 text-primary">
-        <button className="p-2 hover:text-tertiary transition-colors">
-          <Settings size={20} />
+      <div className="flex items-center gap-4 relative">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onAudioToggle}
+            className="rounded-full bg-surface-container-high p-2 text-primary hover:text-tertiary transition-colors shadow-sm shadow-primary/10"
+          >
+            <AnimateIcon animateOnHover>
+              {isAudioEnabled ? <Pause size={18} /> : <Play size={18} />}
+            </AnimateIcon>
+          </button>
+          <button
+            type="button"
+            onClick={toggleTrackPanel}
+            className="rounded-full border border-primary/10 bg-surface-container-high px-3 py-2 text-xs font-medium text-secondary hover:bg-surface-container hover:text-primary transition-all"
+          >
+            <span className="inline-flex items-center gap-2">
+              <Music2 size={16} />
+              {currentTrackLabel}
+            </span>
+          </button>
+        </div>
+
+        {showTrackPanel && (
+          <div className="absolute right-0 top-14 w-80 rounded-3xl border border-primary/10 bg-background/95 shadow-2xl shadow-primary/15 p-4 backdrop-blur-xl z-50">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.28em] text-secondary">Âm nhạc</p>
+                <p className="text-sm font-semibold text-on-background">Chọn bản nhạc</p>
+              </div>
+              <button
+                type="button"
+                onClick={toggleTrackPanel}
+                className="text-secondary text-sm hover:text-primary transition-colors"
+              >
+                Đóng
+              </button>
+            </div>
+            <div className="mt-2 grid grid-cols-1 gap-2">
+              {trackOptions.map((track) => (
+                <button
+                  key={track.label}
+                  type="button"
+                  onClick={() => onTrackSelect(track.url, track.label)}
+                  className="w-full rounded-full border border-primary/10 bg-surface-container-high px-4 py-3 text-left text-sm text-on-surface transition-all hover:bg-primary/5"
+                >
+                  {track.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-4 text-[11px] text-secondary opacity-80">
+              Nhấn vào tên bài là chơi ngay, nút dừng giữ lại vị trí cũ.
+            </p>
+          </div>
+        )}
+
+        <motion.button
+          type="button"
+          onClick={toggleTheme}
+          whileTap={{ scale: 0.94 }}
+          className="rounded-full p-2 text-sm font-semibold text-on-surface transition-all hover:-translate-y-0.5"
+        >
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={theme}
+              initial={{ opacity: 0, scale: 0.8, rotate: -90 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              exit={{ opacity: 0, scale: 0.8, rotate: 90 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="inline-flex"
+            >
+              <AnimateIcon animateOnHover>
+                {theme === 'light' ? <Sun size={20} /> : <SunMoon size={20} />}
+              </AnimateIcon>
+            </motion.div>
+          </AnimatePresence>
+        </motion.button>
+        <button className="p-2 text-primary hover:text-tertiary transition-colors">
+          <AnimateIcon animateOnHover>
+            <Cog size={20} />
+          </AnimateIcon>
         </button>
-        <button className="p-2 hover:text-tertiary transition-colors">
-          <Leaf size={20} />
+        <button className="p-2 text-primary hover:text-tertiary transition-colors">
+          <AnimateIcon animateOnHover>
+            <Leaf size={20} />
+          </AnimateIcon>
         </button>
       </div>
     </nav>

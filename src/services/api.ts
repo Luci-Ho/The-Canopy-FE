@@ -4,9 +4,12 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   const token = localStorage.getItem('token');
 
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...((options.headers as Record<string, string>) || {}),
   };
+
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -51,20 +54,26 @@ export interface LoginResponse {
 export interface UserProfile {
   _id: string;
   email: string;
+  username: string;
   displayName?: string;
   bio?: string;
   avatarUrl?: string;
   phone?: string;
+  birthdate?: string;
+  zodiac?: string;
+  personality?: string;
+  strengths?: string[];
+  weaknesses?: string[];
   isEmailVerified: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
 export const authApi = {
-  register(email: string, password: string) {
+  register(email: string, password: string, username: string) {
     return request<RegisterResponse>('/api/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, username }),
     });
   },
 
@@ -77,5 +86,26 @@ export const authApi = {
 
   getMe() {
     return request<UserProfile>('/api/auth/me');
+  },
+
+  updateProfile(updates: Partial<UserProfile>) {
+    return request<UserProfile>('/api/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  },
+
+  uploadAvatar(file: File) {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    return request<{ avatarUrl: string }>('/api/auth/avatar', {
+      method: 'POST',
+      body: formData,
+      headers: {}, // Let browser set content-type for FormData
+    });
+  },
+
+  getChatHistory() {
+    return request<any[]>('/api/auth/chat/history');
   },
 };

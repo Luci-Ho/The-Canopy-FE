@@ -1,44 +1,37 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Heart, ArrowRight, PlusCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-const LEAF_CARDS = [
-  {
-    id: 1,
-    category: '#01 - Trí tuệ',
-    title: 'Sự Kiên Định Của Sồi',
-    quote: '"Như rễ cây đâm sâu vào lòng đất, hãy vững chãi trước những bão giông của cảm xúc. Sự im lặng là sức mạnh lớn nhất của bạn lúc này."',
-    image: 'https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?q=80&w=800&auto=format&fit=crop',
-    favorite: true
-  },
-  {
-    id: 2,
-    category: '#12 - Khởi đầu',
-    title: 'Dương Xỉ Nảy Chồi',
-    quote: '"Mọi hành trình vĩ đại đều bắt đầu từ một sự chuyển mình nhỏ bé. Hãy cho phép bản thân được mềm yếu và dịu dàng với chính mình."',
-    image: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?q=80&w=800&auto=format&fit=crop',
-    favorite: false
-  },
-  {
-    id: 3,
-    category: '#08 - Buông bỏ',
-    title: 'Vũ Điệu Của Phong',
-    quote: '"Sự thay đổi không phải là mất mát, mà là nhường chỗ cho vẻ đẹp mới. Hãy buông tay để được cuốn trôi theo dòng chảy của định mệnh."',
-    image: 'https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?q=80&w=800&auto=format&fit=crop',
-    favorite: false
-  },
-  {
-    id: 4,
-    category: '#24 - Thanh tịnh',
-    title: 'Lá Sen Giữa Hồ',
-    quote: '"Giữa những xao động của trần thế, hãy tìm về tâm điểm của sự bình yên. Mọi phiền não sẽ trôi đi như những giọt nước trên lá sen."',
-    image: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=800&auto=format&fit=crop',
-    favorite: true
-  }
-];
+interface LeafCard {
+  id: number;
+  category: string;
+  title: string;
+  quote: string;
+  image: string;
+  favorite: boolean;
+}
 
 export const Collection: React.FC = () => {
+  const [cards, setCards] = useState<LeafCard[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCards = async () => {
+      try {
+        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5003';
+        const response = await fetch(`${baseUrl}/api/content/leaf-cards`);
+        const data = await response.json();
+        setCards(data);
+      } catch (error) {
+        console.error('Error fetching leaf cards:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCards();
+  }, []);
   return (
     <div className="pb-20">
       <header className="mb-16 text-center lg:text-left">
@@ -74,7 +67,7 @@ export const Collection: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-        {LEAF_CARDS.map((card, index) => (
+        {cards.map((card, index) => (
           <motion.div 
             key={card.id}
             initial={{ opacity: 0, y: 20 }}

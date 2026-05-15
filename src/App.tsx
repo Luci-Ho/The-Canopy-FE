@@ -1,16 +1,57 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Particles } from 'react-tsparticles';
+import { loadFull } from 'tsparticles';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { Sidebar, Navbar, MobileNav } from './components/Navigation';
 import { Home } from './components/Home';
 import { Collection } from './components/Collection';
 import { OracleDialogue } from './components/OracleDialogue';
+import { Profile } from './components/Profile';
 import { Login } from './components/Login';
 import { useAuth } from './contexts/AuthContext';
 import { Leaf } from 'lucide-react';
+import { audioManager } from './services/audio';
 
-export default function App() {
+interface AudioTrack {
+  label: string;
+  url: string;
+}
+
+const tabRoutes = {
+  home: '/',
+  collection: '/vuon-ky-uc',
+  oracle: '/loi-sam-truyen',
+  profile: '/ho-so-linh-hon',
+  timeline: '/dong-thoi-gian'
+};
+
+const routeTabs = Object.fromEntries(
+  Object.entries(tabRoutes).map(([tab, path]) => [path, tab])
+) as Record<string, string>;
+
+const normalizePath = (path: string) => path.replace(/\/+$/, '') || '/';
+
+function AppRouter() {
   const { isAuthenticated, isLoading, logout } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('home');
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [trackOptions, setTrackOptions] = useState<AudioTrack[]>([]);
+  const [currentTrack, setCurrentTrack] = useState<AudioTrack | null>(null);
+  const [showTrackPanel, setShowTrackPanel] = useState(false);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
+
+  useEffect(() => {
+    const path = normalizePath(location.pathname);
+    setActiveTab(routeTabs[path] ?? 'home');
+  }, [location.pathname]);
+
+  const handleSetTab = (tab: string) => {
+    setActiveTab(tab);
+    navigate(tabRoutes[tab as keyof typeof tabRoutes] || '/');
+  };
 
   // Firefly background effect
   const [fireflies, setFireflies] = useState<{ id: number; top: string; left: string; delay: string }[]>([]);
@@ -24,6 +65,105 @@ export default function App() {
     }));
     setFireflies(newFireflies);
   }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+
+  useEffect(() => {
+    const fetchTracks = async () => {
+      try {
+        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5003';
+        const response = await fetch(`${baseUrl}/api/content/audio-tracks`);
+        const tracks = await response.json();
+        setTrackOptions(tracks);
+        
+        const savedTrackUrl = window.localStorage.getItem('canopy-audio-track');
+        if (savedTrackUrl) {
+          const savedTrack = tracks.find((track: AudioTrack) => track.url === savedTrackUrl);
+          if (savedTrack) {
+            setCurrentTrack(savedTrack);
+          } else {
+            setCurrentTrack(tracks[0]);
+          }
+        } else {
+          setCurrentTrack(tracks[0]);
+        }
+
+        audioManager.init(false);
+        const selectedUrl = savedTrackUrl || tracks[0].url;
+        audioManager.selectTrack(selectedUrl);
+      } catch (error) {
+        console.error('Error fetching audio tracks:', error);
+      }
+    };
+
+    fetchTracks();
+  }, []);
+
+  const particlesInit = useCallback(async (engine: any) => {
+    try {
+      await loadFull(engine);
+    } catch (error) {
+      console.warn('Particles initialization warning:', error);
+      // Continue even if particles fail to load
+    }
+  }, []);
+
+  const particleOptions = {
+    fullScreen: { enable: false },
+    background: { color: { value: 'transparent' } },
+    particles: {
+      number: { value: 80, density: { enable: true, area: 1000 } },
+      color: { value: ['#f9d78f', '#f7b53c', '#ffd77d'] },
+      shape: { type: 'circle' },
+      opacity: { value: 0.48, random: { enable: true, minimumValue: 0.15 }, anim: { enable: true, speed: 0.7, opacityMin: 0.12, sync: false } },
+      size: { value: { min: 1.2, max: 3.4 }, random: true },
+      move: { enable: true, speed: 0.9, direction: 'none' as const, random: true, straight: false, outModes: { default: 'out' as const }, attract: { enable: true, rotateX: 600, rotateY: 1200 } },
+      links: { enable: true, distance: 110, color: '#f7b53c', opacity: 0.18, width: 1 }
+    },
+    interactivity: {
+      detectsOn: 'canvas' as const,
+      events: {
+        onHover: { enable: true, mode: ['grab', 'repulse'] },
+        onClick: { enable: true, mode: 'push' },
+        resize: true
+      },
+      modes: {
+        grab: { distance: 140, links: { opacity: 0.45 } },
+        repulse: { distance: 120, duration: 0.4 },
+        push: { quantity: 4 }
+      }
+    }
+  };
+
+  const toggleTheme = () => {
+    setTheme((current) => (current === 'light' ? 'dark' : 'light'));
+  };
+
+  const handleAudioToggle = () => {
+    const nextEnabled = !isAudioEnabled;
+    setIsAudioEnabled(nextEnabled);
+    setShowTrackPanel(false);
+
+    if (nextEnabled) {
+      audioManager.playAudio();
+    } else {
+      audioManager.pauseAudio();
+    }
+  };
+
+  const handleTrackSelect = (url: string, label: string) => {
+    setCurrentTrack({ label, url });
+    setShowTrackPanel(false);
+    setIsAudioEnabled(true);
+    audioManager.selectTrack(url);
+    audioManager.playAudio();
+  };
+
+  const toggleTrackPanel = () => {
+    setShowTrackPanel((prev) => !prev);
+  };
 
   // Loading screen while checking token
   if (isLoading) {
@@ -74,7 +214,12 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background text-on-background selection:bg-tertiary/20 selection:text-tertiary relative overflow-x-hidden">
-      {/* Background Fireflies */}
+      <Particles
+        id="canopy-glow"
+        init={particlesInit}
+        options={particleOptions}
+        className="pointer-events-none absolute inset-0 -z-10 opacity-85"
+      />
       <div className="fixed inset-0 pointer-events-none z-0">
         {fireflies.map(f => (
           <motion.div 
@@ -96,14 +241,25 @@ export default function App() {
         ))}
       </div>
 
-      <Navbar setActiveTab={setActiveTab} />
+      <Navbar
+        setActiveTab={handleSetTab}
+        theme={theme}
+        toggleTheme={toggleTheme}
+        isAudioEnabled={isAudioEnabled}
+        onAudioToggle={handleAudioToggle}
+        currentTrackLabel={currentTrack?.label || 'Loading...'}
+        trackOptions={trackOptions}
+        showTrackPanel={showTrackPanel}
+        toggleTrackPanel={toggleTrackPanel}
+        onTrackSelect={handleTrackSelect}
+      />
       <Sidebar 
         activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
+        setActiveTab={handleSetTab} 
         onLogout={logout}
       />
 
-      <main className="min-h-screen pt-28 pb-32 lg:pl-80 px-6 md:px-12 max-w-[1600px] mx-auto w-full relative z-10">
+      <main className="min-h-screen pt-28 pb-32 lg:pl-80 px-6 md:px-12 max-w-screen-2xl mx-auto w-full relative z-10">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -112,15 +268,18 @@ export default function App() {
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
           >
-            {activeTab === 'home' && <Home onStartOracle={() => setActiveTab('oracle')} />}
-            {activeTab === 'collection' && <Collection />}
-            {activeTab === 'oracle' && <OracleDialogue />}
-            {activeTab === 'timeline' && (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <h2 className="font-headline text-4xl text-primary mb-4">Dòng thời gian</h2>
-                <p className="text-secondary opacity-60">Tính năng này đang được gieo mầm. Hãy quay lại sau nhé.</p>
-              </div>
-            )}
+            <Routes>
+              <Route path="/" element={<Home onStartOracle={() => handleSetTab('oracle')} />} />
+              <Route path="/vuon-ky-uc" element={<Collection />} />
+              <Route path="/loi-sam-truyen" element={<OracleDialogue />} />
+              <Route path="/ho-so-linh-hon" element={<Profile />} />
+              <Route path="/dong-thoi-gian" element={
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <h2 className="font-headline text-4xl text-primary mb-4">Dòng thời gian</h2>
+                  <p className="text-secondary opacity-60">Tính năng này đang được gieo mầm. Hãy quay lại sau nhé.</p>
+                </div>
+              } />
+            </Routes>
           </motion.div>
         </AnimatePresence>
 
@@ -144,7 +303,15 @@ export default function App() {
         </footer>
       </main>
 
-      <MobileNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      <MobileNav activeTab={activeTab} setActiveTab={handleSetTab} />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppRouter />
+    </BrowserRouter>
   );
 }

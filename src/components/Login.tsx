@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Leaf, ArrowRight, BookOpen, Mail, KeyRound, UserPlus, LogIn } from 'lucide-react';
+import { Leaf, ArrowRight, BookOpen, Mail, KeyRound, UserPlus, LogIn, User } from 'lucide-react';
 import { authApi, ApiError } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -12,6 +12,7 @@ export const Login: React.FC = () => {
   const [step, setStep] = useState<Step>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,7 +27,7 @@ export const Login: React.FC = () => {
     clearMessages();
     setLoading(true);
     try {
-      await authApi.register(email, password);
+      await authApi.register(email, password, username);
       setSuccess('Đăng ký thành công! Đang đăng nhập...');
       // Auto-login after register
       const loginRes = await authApi.login(email, password);
@@ -68,8 +69,8 @@ export const Login: React.FC = () => {
 
   const isLogin = step === 'login';
   const config = isLogin
-    ? { title: 'Kết nối tâm hồn', subtitle: 'Nhập định danh để bước vào thánh đường', icon: LogIn, buttonText: 'Bước qua cánh cổng', onSubmit: handleLogin }
-    : { title: 'Gieo hạt giống mới', subtitle: 'Tạo định danh để bắt đầu hành trình', icon: UserPlus, buttonText: 'Gieo hạt giống', onSubmit: handleRegister };
+    ? { title: 'Kết nối tâm hồn', subtitle: 'Nhập mật danh để bước vào thánh đường', icon: LogIn, buttonText: 'Bước qua cánh cổng', onSubmit: handleLogin }
+    : { title: 'Gieo hạt giống mới', subtitle: 'Đặt mật danh để bắt đầu hành trình', icon: UserPlus, buttonText: 'Gieo hạt giống', onSubmit: handleRegister };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 md:p-12 bg-background">
@@ -144,10 +145,27 @@ export const Login: React.FC = () => {
 
                   {/* Form */}
                   <form className="space-y-6" onSubmit={config.onSubmit}>
+                    {!isLogin && (
+                      <div className="space-y-2">
+                        <label className="block text-xs font-medium uppercase tracking-widest text-on-surface-variant px-1">
+                          <User size={12} className="inline mr-1 -mt-0.5" />
+                          Chân Danh
+                        </label>
+                        <input 
+                          className="w-full bg-surface-container-low border-none rounded-2xl px-6 py-4 focus:ring-2 focus:ring-primary/20 text-on-surface outline-none transition-shadow" 
+                          placeholder="Hiện thân của bạn dưới tán đại thụ" 
+                          type="text"
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value)}
+                          required
+                          autoComplete="username"
+                        />
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <label className="block text-xs font-medium uppercase tracking-widest text-on-surface-variant px-1">
                         <Mail size={12} className="inline mr-1 -mt-0.5" />
-                        Định danh (Email)
+                        Mật danh (Email)
                       </label>
                       <input 
                         className="w-full bg-surface-container-low border-none rounded-2xl px-6 py-4 focus:ring-2 focus:ring-primary/20 text-on-surface outline-none transition-shadow" 
@@ -162,7 +180,7 @@ export const Login: React.FC = () => {
                     <div className="space-y-2">
                       <label className="block text-xs font-medium uppercase tracking-widest text-on-surface-variant px-1">
                         <KeyRound size={12} className="inline mr-1 -mt-0.5" />
-                        Mật mã cổ
+                        Mật mã
                       </label>
                       <input 
                         className="w-full bg-surface-container-low border-none rounded-2xl px-6 py-4 focus:ring-2 focus:ring-primary/20 text-on-surface outline-none transition-shadow" 
@@ -200,7 +218,7 @@ export const Login: React.FC = () => {
                   <div className="flex items-center justify-between text-sm pt-4">
                     {isLogin ? (
                       <>
-                        <span className="text-on-surface-variant text-xs">Chưa có tài khoản?</span>
+                        <span className="text-on-surface-variant text-xs">Tìm kiếm sự sự khởi đầu?</span>
                         <button 
                           onClick={switchToRegister} 
                           className="text-primary font-semibold hover:underline"
@@ -211,13 +229,13 @@ export const Login: React.FC = () => {
                       </>
                     ) : (
                       <>
-                        <span className="text-on-surface-variant text-xs">Đã có định danh?</span>
+                        <span className="text-on-surface-variant text-xs">Đã có mật danh?</span>
                         <button 
                           onClick={switchToLogin} 
                           className="text-primary font-semibold hover:underline"
                           type="button"
                         >
-                          Đăng nhập
+                          Đi tiếp
                         </button>
                       </>
                     )}
