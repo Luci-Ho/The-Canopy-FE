@@ -8,15 +8,12 @@ import { Home } from './components/Home';
 import { Collection } from './components/Collection';
 import { OracleDialogue } from './components/OracleDialogue';
 import { Profile } from './components/Profile';
+import { Timeline } from './components/Timeline';
 import { Login } from './components/Login';
 import { useAuth } from './contexts/AuthContext';
+import { contentApi, AudioTrack } from './services/api';
 import { Leaf } from 'lucide-react';
 import { audioManager } from './services/audio';
-
-interface AudioTrack {
-  label: string;
-  url: string;
-}
 
 const tabRoutes = {
   home: '/',
@@ -38,7 +35,7 @@ function AppRouter() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('home');
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
-  const [trackOptions, setTrackOptions] = useState<AudioTrack[]>([]);
+  const [trackOptions, setTrackOptions] = useState<{ label: string; url: string }[]>([]);
   const [currentTrack, setCurrentTrack] = useState<AudioTrack | null>(null);
   const [showTrackPanel, setShowTrackPanel] = useState(false);
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
@@ -73,14 +70,17 @@ function AppRouter() {
   useEffect(() => {
     const fetchTracks = async () => {
       try {
-        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5003';
-        const response = await fetch(`${baseUrl}/api/content/audio-tracks`);
-        const tracks = await response.json();
-        setTrackOptions(tracks);
+        const tracks = await contentApi.getAudioTracks();
+        // Transform AudioTrack to Navigation trackOptions format
+        const trackOptionsForUI = tracks.map((track) => ({
+          label: track.label || track.name,
+          url: track.url,
+        }));
+        setTrackOptions(trackOptionsForUI);
         
         const savedTrackUrl = window.localStorage.getItem('canopy-audio-track');
         if (savedTrackUrl) {
-          const savedTrack = tracks.find((track: AudioTrack) => track.url === savedTrackUrl);
+          const savedTrack = tracks.find((track) => track.url === savedTrackUrl);
           if (savedTrack) {
             setCurrentTrack(savedTrack);
           } else {
@@ -154,7 +154,8 @@ function AppRouter() {
   };
 
   const handleTrackSelect = (url: string, label: string) => {
-    setCurrentTrack({ label, url });
+    const trackName = label; // Use label as name/display
+    setCurrentTrack({ id: '', name: trackName, label, url });
     setShowTrackPanel(false);
     setIsAudioEnabled(true);
     audioManager.selectTrack(url);
@@ -247,7 +248,7 @@ function AppRouter() {
         toggleTheme={toggleTheme}
         isAudioEnabled={isAudioEnabled}
         onAudioToggle={handleAudioToggle}
-        currentTrackLabel={currentTrack?.label || 'Loading...'}
+        currentTrackLabel={currentTrack?.label || currentTrack?.name || 'Loading...'}
         trackOptions={trackOptions}
         showTrackPanel={showTrackPanel}
         toggleTrackPanel={toggleTrackPanel}
@@ -273,12 +274,7 @@ function AppRouter() {
               <Route path="/vuon-ky-uc" element={<Collection />} />
               <Route path="/loi-sam-truyen" element={<OracleDialogue />} />
               <Route path="/ho-so-linh-hon" element={<Profile />} />
-              <Route path="/dong-thoi-gian" element={
-                <div className="flex flex-col items-center justify-center py-20 text-center">
-                  <h2 className="font-headline text-4xl text-primary mb-4">Dòng thời gian</h2>
-                  <p className="text-secondary opacity-60">Tính năng này đang được gieo mầm. Hãy quay lại sau nhé.</p>
-                </div>
-              } />
+              <Route path="/dong-thoi-gian" element={<Timeline />} />
             </Routes>
           </motion.div>
         </AnimatePresence>
@@ -298,7 +294,7 @@ function AppRouter() {
             ))}
           </div>
           <p className="text-[10px] uppercase tracking-widest text-secondary opacity-40">
-            © 2024 Thánh đường Kỹ thuật số - Bình yên trong từng hơi thở.
+            © 2034 Thánh đường Kỹ thuật số - Bình yên trong từng hơi thở.
           </p>
         </footer>
       </main>

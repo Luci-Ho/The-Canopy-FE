@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Send, Sparkles, User, Leaf, Info } from 'lucide-react';
 import { getOracleResponse } from '../services/gemini';
+import { chatApi, ChatMessage } from '../services/api';
 import { cn } from '../lib/utils';
 
 interface Message {
@@ -23,6 +24,7 @@ export const OracleDialogue: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -77,7 +79,25 @@ export const OracleDialogue: React.FC = () => {
     };
 
     setMessages(prev => [...prev, modelMsg]);
-    setIsLoading(false);
+
+    const payload: ChatMessage[] = [
+      { role: 'user', text: userMsg.text },
+      { role: 'model', text: modelMsg.text }
+    ];
+
+    try {
+      if (sessionId) {
+        await chatApi.appendMessages(sessionId, payload);
+      } else {
+        const title = input.trim().slice(0, 60) || 'Oracle Session';
+        const session = await chatApi.createSession(payload, title);
+        setSessionId(session._id);
+      }
+    } catch (saveError) {
+      console.error('Error saving chat history:', saveError);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

@@ -69,6 +69,25 @@ export interface UserProfile {
   updatedAt: string;
 }
 
+export interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+  timestamp?: string;
+}
+
+export interface ChatSessionSummary {
+  _id: string;
+  title: string;
+  updatedAt: string;
+  createdAt: string;
+  messageCount: number;
+  lastSnippet: string;
+}
+
+export interface ChatSessionDetail extends ChatSessionSummary {
+  messages: ChatMessage[];
+}
+
 export const authApi = {
   register(email: string, password: string, username: string) {
     return request<RegisterResponse>('/api/auth/register', {
@@ -89,8 +108,8 @@ export const authApi = {
   },
 
   updateProfile(updates: Partial<UserProfile>) {
-    return request<UserProfile>('/api/auth/profile', {
-      method: 'PUT',
+    return request<UserProfile>('/api/profile', {
+      method: 'PATCH',
       body: JSON.stringify(updates),
     });
   },
@@ -98,14 +117,70 @@ export const authApi = {
   uploadAvatar(file: File) {
     const formData = new FormData();
     formData.append('avatar', file);
-    return request<{ avatarUrl: string }>('/api/auth/avatar', {
+    return request<{ avatarUrl: string }>('/api/profile/avatar', {
       method: 'POST',
       body: formData,
       headers: {}, // Let browser set content-type for FormData
     });
   },
 
-  getChatHistory() {
-    return request<any[]>('/api/auth/chat/history');
+};
+
+// ─── Chat APIs ────────────────────────────────────────────
+
+export const chatApi = {
+  // Get all chat sessions (list view)
+  getSessions() {
+    return request<ChatSessionSummary[]>('/api/chat/sessions');
+  },
+
+  // Get single session with messages
+  getSession(sessionId: string) {
+    return request<ChatSessionDetail>(`/api/chat/sessions/${sessionId}`);
+  },
+
+  // Create new session with initial messages
+  createSession(messages: ChatMessage[], title?: string) {
+    return request<ChatSessionDetail>('/api/chat/sessions', {
+      method: 'POST',
+      body: JSON.stringify({ title: title || 'Oracle Session', messages }),
+    });
+  },
+
+  // Add messages to session
+  appendMessages(sessionId: string, messages: ChatMessage[]) {
+    return request<ChatSessionDetail>(`/api/chat/sessions/${sessionId}/messages`, {
+      method: 'PATCH',
+      body: JSON.stringify({ messages }),
+    });
+  },
+};
+
+// ─── Content APIs ────────────────────────────────────────────
+
+export interface AudioTrack {
+  id: string;
+  name: string;
+  label?: string; // For backwards compatibility with UI components
+  url: string;
+  duration?: number;
+}
+
+export interface ZodiacInfo {
+  sign: string;
+  dates?: string;
+  description?: string;
+  personality?: string;
+  strengths?: string[];
+  weaknesses?: string[];
+}
+
+export const contentApi = {
+  getAudioTracks() {
+    return request<AudioTrack[]>('/api/content/audio-tracks');
+  },
+
+  getZodiacInfo(sign: string) {
+    return request<ZodiacInfo>(`/api/content/zodiac/${sign}`);
   },
 };

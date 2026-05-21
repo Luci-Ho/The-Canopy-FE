@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { User, Calendar, Star, Upload, Edit, Save, X } from 'lucide-react';
-import { authApi, ApiError, UserProfile } from '../services/api';
+import { authApi, ApiError, UserProfile, contentApi, chatApi, ZodiacInfo } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
-interface ZodiacInfo {
-  sign: string;
-  personality: string;
-  strengths: string[];
-  weaknesses: string[];
-}
+type ChatSessionSummary = {
+  _id: string;
+  title: string;
+  updatedAt: string;
+  createdAt: string;
+  messageCount: number;
+  lastSnippet: string;
+};
 
 const getZodiacSign = (birthdate: string): string => {
   const date = new Date(birthdate);
@@ -47,7 +49,7 @@ export const Profile: React.FC = () => {
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
-  const [chatHistory, setChatHistory] = useState<any[]>([]);
+  const [chatHistory, setChatHistory] = useState<ChatSessionSummary[]>([]);
   const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5003';
 
   const resolveAvatarUrl = (url: string) => {
@@ -77,9 +79,7 @@ export const Profile: React.FC = () => {
   const fetchZodiacInfo = async (birthdate: string) => {
     try {
       const sign = getZodiacSign(birthdate);
-      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5003';
-      const response = await fetch(`${baseUrl}/api/content/zodiac/${sign}`);
-      const data = await response.json();
+      const data = await contentApi.getZodiacInfo(sign);
       setZodiacInfo(data);
     } catch (error) {
       console.error('Error fetching zodiac info:', error);
@@ -88,10 +88,10 @@ export const Profile: React.FC = () => {
 
   const loadChatHistory = async () => {
     try {
-      const history = await authApi.getChatHistory();
-      setChatHistory(history);
+      const sessions = await chatApi.getSessions();
+      setChatHistory(sessions);
     } catch (err) {
-      console.error('Failed to load chat history:', err);
+      console.error('Failed to load chat sessions:', err);
     }
   };
 
@@ -249,7 +249,7 @@ export const Profile: React.FC = () => {
                     <div>
                       <p className="font-medium text-green-600">Điểm mạnh:</p>
                       <ul className="list-disc list-inside text-on-surface-variant">
-                        {zodiacInfo.strengths.map((strength, index) => (
+                        {zodiacInfo.strengths?.map((strength, index) => (
                           <li key={index}>{strength}</li>
                         ))}
                       </ul>
@@ -257,7 +257,7 @@ export const Profile: React.FC = () => {
                     <div>
                       <p className="font-medium text-red-600">Điểm yếu:</p>
                       <ul className="list-disc list-inside text-on-surface-variant">
-                        {zodiacInfo.weaknesses.map((weakness, index) => (
+                        {zodiacInfo.weaknesses?.map((weakness, index) => (
                           <li key={index}>{weakness}</li>
                         ))}
                       </ul>
@@ -329,11 +329,12 @@ export const Profile: React.FC = () => {
             {chatHistory.length === 0 ? (
               <p className="text-on-surface-variant text-center py-8">Chưa có lịch sử tương tác</p>
             ) : (
-              chatHistory.map((chat, index) => (
-                <div key={index} className="bg-surface-container-high rounded-xl p-4">
-                  <p className="text-on-surface font-medium">{chat.message}</p>
-                  <p className="text-on-surface-variant text-sm mt-1">
-                    {new Date(chat.timestamp).toLocaleString('vi-VN')}
+              chatHistory.map((chat) => (
+                <div key={chat._id} className="bg-surface-container-high rounded-xl p-4">
+                  <p className="text-on-surface font-medium">{chat.title || 'Phiên trò chuyện'}</p>
+                  <p className="text-on-surface-variant text-sm mt-1">{chat.lastSnippet}</p>
+                  <p className="text-on-surface-variant text-xs mt-2">
+                    Cập nhật: {new Date(chat.updatedAt).toLocaleString('vi-VN')} • {chat.messageCount} tin nhắn
                   </p>
                 </div>
               ))
